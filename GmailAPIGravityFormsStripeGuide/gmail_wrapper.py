@@ -244,7 +244,7 @@ def test():
         html = "<h3>Body:</h3>{}".format(msg_body)
         # Send an email response the contains the original email
         message = wrapper.create_message(headers['From'],
-            'Re: ' + headers['Subject'], plain, html, 'test.html')
+            'Re: ' + headers['Subject'], plain, html)
         wrapper.send_message(message)
         # Mark the message as read so we don't process it again
         wrapper.mark_as_read(unread_msg_id)
