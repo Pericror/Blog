@@ -14,6 +14,8 @@ import httplib2
 import os
 import argparse
 import base64
+import mimetypes
+import sys
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -28,7 +30,7 @@ class GmailWrapper(object):
     SCOPES = 'https://www.googleapis.com/auth/gmail.modify'
     CLIENT_SECRET_FILE = 'client_secret.json' # https://console.developers.google.com/apis/credentials
     APPLICATION_NAME = "Link Checker"
-    AUTHORIZED_FROM = 'danielkoohmarey@gmail.com'
+    AUTHORIZED_FROM = 'submission@pericror.com' # the address we expect to rx emails from
     SENDER = 'pericrorlinkchecker@gmail.com'
 
     def __init__(self):
@@ -153,7 +155,7 @@ class GmailWrapper(object):
             
         return success
 
-    def create_message(self, to, subject, plain, html):
+    def create_message(self, to, subject, plain, html, attachment = None):
         """Create a message for an email.
         
         Args:
@@ -161,22 +163,51 @@ class GmailWrapper(object):
             subject: The subject of the email message.
             plain: The text of the email message.
             html: The html of the email message.
-        
+            attachment: The path to the attachment.
+            
         Returns:
             An object containing a base64url encoded email object.
         """
         message = MIMEMultipart('alternative')
-        
-        plain_part = MIMEText(plain, 'plain')
-        html_part = MIMEText(html, 'html')
-        message.attach(plain_part)
-        message.attach(html_part)
-
         message['To'] = to
         message['From'] = self.SENDER
         message['Subject'] = subject
+
+        plain_part = MIMEText(plain, 'plain')
+        message.attach(plain_part)
         
-        return {'raw': base64.urlsafe_b64encode(message.as_string())}        
+        html_part = MIMEText(html, 'html')
+        message.attach(html_part)
+        
+        content_type, encoding = mimetypes.guess_type(attachment)
+
+        msg = None
+        if content_type is None or encoding is not None:
+            content_type = 'application/octet-stream'
+        main_type, sub_type = content_type.split('/', 1)
+        if main_type == 'text':
+            fp = open(attachment, 'rb')
+            msg = MIMEText(fp.read(), _subtype=sub_type)
+            fp.close()
+        elif main_type == 'image':
+            fp = open(attachment, 'rb')
+            msg = MIMEImage(fp.read(), _subtype=sub_type)
+            fp.close()
+        elif main_type == 'audio':
+            fp = open(attachment, 'rb')
+            msg = MIMEAudio(fp.read(), _subtype=sub_type)
+            fp.close()
+        else:
+            fp = open(attachment, 'rb')
+            msg = MIMEBase(main_type, sub_type)
+            msg.set_payload(fp.read())
+            fp.close()
+        filename = os.path.basename(attachment)
+        
+        msg.add_header('Content-Disposition', 'attachment', filename=filename)
+        message.attach(msg)  
+        
+        return {'raw': base64.urlsafe_b64encode(message.as_string())}          
         
     def send_message(self, message):
         """Send an email message.
@@ -199,7 +230,7 @@ class GmailWrapper(object):
         
         return success
         
-if __name__ == '__main__':
+def test():
     wrapper = GmailWrapper()
     # Get an unread (unprocessed) email
     unread_msg_id = wrapper.get_unread_message_id()
@@ -213,8 +244,12 @@ if __name__ == '__main__':
         html = "<h3>Body:</h3>{}".format(msg_body)
         # Send an email response the contains the original email
         message = wrapper.create_message(headers['From'],
-            'Re: ' + headers['Subject'], plain, html)
+            'Re: ' + headers['Subject'], plain, html, 'test.html')
         wrapper.send_message(message)
         # Mark the message as read so we don't process it again
         wrapper.mark_as_read(unread_msg_id)
-        print "Sent email copy to " + headers['From']
+        print "Sent email copy to " + headers['From'] 
+        
+if __name__ == '__main__':
+    if 'test' in sys.argv:
+        test()
