@@ -171,7 +171,7 @@ class GmailWrapper(object):
         Returns:
             An object containing a base64url encoded email object.
         """
-        message = MIMEMultipart('mixed') # originally 'alternative'
+        message = MIMEMultipart('mixed') #https://stackoverflow.com/questions/3902455/mail-multipart-alternative-vs-multipart-mixed
         message['To'] = to
         message['From'] = self.SENDER
         message['Subject'] = subject
