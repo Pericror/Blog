@@ -1,0 +1,89 @@
+# C++ Interview Questions
+
+##Conceptual Questions
+
+3. When is a vtbl / virtual function table used for a class function lookup?:
+Answer: When the `virtual` keyword is used to declare a function, a virtual table is created to lookup the function since it may be be redefined later, meaning we can't statically bind the function. This allows a base class function in a derived class to maintain the behavior of its derived class even after it has been downcast.
+
+4. Why would you want to make the deconstructor of your base class `virtual`?
+Answer: Without it, if you had base class `B` and a derived class `A`, if you did ```c++ B * base = new A(); delete B;``` the deconstructor for A would not be called and you would possibly leak resources.
+
+5. How would you create an interface?
+Answer: Create a class with pure virtual functions, i.e ```c++ virtual void example() = 0;```
+
+7. What is a functor? How could it be used?
+Answer: A function object, an object that has `()` defined. Used in example `find_if` as the predicate, allows us to pass a variable into the function if `Lambdas` are not available, i.e to find a matching struct with member in vector we would define a functor to hold the struct member we want to match, and have () defined to return true if a match is found.
+
+8. What is the benefit of a forward declaration?
+Answer: You don't need to include the entire header of the forward declared class, allowing you to avoid re-compiling changes if the header of the forward declared class changes and the header with the forward declared class is included by other files. 
+
+9. What are Preprocessor directives:
+Answer: Used by the preprocessor, allows for directives like #define, #ifdef to modify the code before compilation takes place.
+
+13. When compiling, what information do object files contain? What does the linker do?
+Answer: Object files contain machine code needed to execute, as well as symbols needed by the linker. The linker combines object files into an executable program.
+
+14. Why is there only one main function? Why is it's signature int main?
+Answer: A program can only have a single point of entry for execution, an integer return is expected to reflect the status code of the program when it exists, 0 normally indicating success.
+
+16.	When is it a good idea to define a copy constructor?
+Answer: If your class has dynamic member variables, you don't want two classes to have member variable pointers point to the same heap memory. If they were, if one was deleted, the other's pointer would be invalidated when the first instance would delete the allocated memory. The default copy constructor just copies the class members, meaning multiple instances would share the same dynamic memory and have this problem.
+
+17. When do we need to use initializer lists when constructing a class?
+Answer: To initialize const or reference members, or to initialize class member without default constructors
+
+19. What are templated functions? What would be a good use case?
+Answer: Functions declared with the `template` keyword allow us to create functions with generic types. Standard library examples include containers such as `vector<int>`, which hold any type, and expose the same functions.
+
+18. What is the difference between a list and a vector?
+Answer: The `std::vector` is stored sequentially in memory, which makes it better for sequential access (good data locality, same memory might be cached). The memory overhead of the `std::vector` is less than the `std::list`, as it only needs to maintain 3 pointers (one to the begin, one to the end, and one to the end of allocated memory). The `std::list` needs prev/next pointers for ever element in the list.
+
+11. What is the Big O of a std::map lookup? If order did not matter, could we do better?
+Answer: O(log(n)), since the std::map is implemented using a binary search tree hash map. An unordered_map would be based on a hash map and give us O(1) lookup.
+
+12. You have to write a deterministic math function that performs complex operations on small set of possible arguments. How can you improve the amortized time complexity of calling the function multiple times?
+Answer: Introduce memoization/caching to avoid recomputation of arguments you've previously calculated, or if the possible input set is small enough/we have the memory available, precompute all of the results and store them for lookup.
+
+15. Given ```c++ Foo * a = new Foo(); Foo b; static Foo c;```, where does each a,b,c exist in memory (Stack, Heap, Data)?
+Answer: Heap, Stack, and Data. [stack, heap, (uninitialized data Statics/globals)bss, (initialized data statics/globals) data, text]
+    
+21. When would a `new` object be null (i.e `int * pInt = new int(); // pInt == NULL`)?
+Answer: In a memory constrained environment, the `new` may fail to allocate if no memory is available.    
+    
+22. What is an iterator object, when should we use it?
+Answer: Iterator objects point to an element in a range of elements (such as in container such as a vector or a map) and allows for iteration through the elements.
+Standard library containers such as a map or vector have functions which return iterators, such as `begin` and `end`.   
+    
+## Short Programming Questions     
+    
+1. How can we calculate 2^15 using bit shifting?
+Answer: 1<<15; since each bit position is a power of 2.
+
+2. Consider ```c++ enum TrafficLight { GREEN, YELLOW, RED };```. What would you define to transition between states of a `TrafficLight` using `++`, such that the light cycles from GREEN->YELLOW->RED->GREEN??
+Answer: Overload the `++` operator for the enum, ```c++ TrafficLight& operator++(TrafficLight& light){ light = static_cast<TrafficLight>((light + 1) % 3); return prev; }```.
+
+3. If we had ```c++ int * pInt = new int();``` and `pInt` is `0x00000001`, what is the result of `pInt + 1`?
+Answer: `0x00000005` because width of the pointer type (int) is 4 bytes.
+
+4.	Is it possible for result to be true in ```c++ int test = 2;  bool result = (test == 2 && test == 4);```, assuming this is only a snippet of the full code?
+Answer: Yes if we overload the equality operator, ```c++ int& operator+=(int &lhs, Foo &rhs) { return true; }```.
+
+5. What is the return type of the default ostream << (insert) operator, given: ```c++ std::cout << "one " << "two" << std::endl;```?
+Answer: The cout ostream out returns the ostream, which can be deduced from our ability to chain `<<` operations.
+    
+6. Consider ```c++ struct test { int a; char b; };``` what would `sizeof(test)` return?
+Answer: On most machines 5, but if the compiler pads the members to 4 byte boundaries, it will return 8.    
+    
+7. Consider ```struct test { int a; }; std::map<int, test> myMap; myMap[23].a = 1;``` Will the ` myMap[23].a = 1` assignment cause an error?
+Answer: The assignment is valid, access of missing key creates default value.    
+    
+## Debugging questions
+    
+1. Consider ```c++ int cloneBits(short toClone){ return toClone << 16 | toClone; // i.e if toClone is 0x1234, we should return 0x12341234 }`` What is wrong with this function?
+Answer: The 16 bit shift of the short toClone results in 0, and not the expected 0x12340000 because toClone is still a short. A fix would be ```c++ return static_cast<int>(toClone) << 16 | toClone;```
+
+2. Consider ```c++ function int* generateInt() {int generated = 0; return &generated;}``` What is wrong with this function?
+Answer: The `int generated` is declared on the stack, and the pointer will point to garbage once the function scope ends and the stack frame is popped.
+
+3. Consider ```c++ struct test { int id }; int main() { test newTest; if(newTestExists(){ newTest.id = newId() } // check if a new test existed if(a.id != 0) { do something } }``` What is wrong with this code?
+Answer: Struct members uninitialized by default, as a result, a.id != 0 may be true even though no new test existed.
